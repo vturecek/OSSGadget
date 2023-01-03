@@ -65,6 +65,7 @@ namespace Microsoft.CST.OpenSource
             IOutputBuilder outputBuilder = detectCryptographyTool.SelectFormat((string?)detectCryptographyTool.Options["format"] ?? "text");
             if (detectCryptographyTool.Options["target"] is IList<string> targetList && targetList.Count > 0)
             {
+                Dictionary<string, AggregateResult> aggregate = new Dictionary<string, AggregateResult>();
                 StringBuilder? sb = new StringBuilder();
                 foreach (string? target in targetList)
                 {
@@ -154,6 +155,11 @@ namespace Microsoft.CST.OpenSource
                                 sb.AppendLine(Bright.Black("  No library references found."));
                             }
 
+                            if (implementations.Any() || references.Any())
+                            {
+                                aggregate[target] = new AggregateResult(implementations, references);
+                            }
+
                             sb.AppendLine();
                             sb.AppendLine(Green("Other Cryptographic Characteristics:"));
                             IOrderedEnumerable<string>? characteristics = results.SelectMany(r => r.Issue.Rule.Tags ?? Array.Empty<string>())
@@ -225,6 +231,35 @@ namespace Microsoft.CST.OpenSource
                     {
                         Logger.Warn(ex, "Error processing {0}: {1}", target, ex.Message);
                         Logger.Warn(ex.StackTrace);
+                    }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Aggregate results: ");
+
+                foreach (KeyValuePair<string, AggregateResult> item in aggregate)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(item.Key);
+
+                    if (item.Value.Implementations.Any())
+                    {
+                        Console.WriteLine("Implementations: ");
+
+                        foreach (string implementation in item.Value.Implementations)
+                        {
+                            Console.WriteLine($" - {implementation}");
+                        }
+                    }
+
+                    if (item.Value.References.Any())
+                    {
+                        Console.WriteLine("References: ");
+
+                        foreach (string reference in item.Value.References)
+                        {
+                            Console.WriteLine($" - {reference}");
+                        }
                     }
                 }
             }
@@ -741,6 +776,18 @@ optional arguments:
   --help                        show this help message and exit
   --version                     show version of this tool
 ");
+        }
+
+        private struct AggregateResult
+        {
+            public AggregateResult(IEnumerable<string> implementations, IEnumerable<string> references)
+            {
+                Implementations = implementations.ToArray();
+                References = references.ToArray();
+            }
+
+            public IEnumerable<string> Implementations { get; }
+            public IEnumerable<string> References { get; }
         }
     }
 
